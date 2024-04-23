@@ -1,0 +1,123 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using System.webBuilder;
+using System.webBuilder.ControllerBase;
+
+namespace TaskManagerAPI
+{
+    public class TaskItem
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
+    public class Startup
+    {
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddControllers();
+        }
+
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            app.UseRouting();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
+        }
+    }
+
+    public class TaskController : ControllerBase
+    {
+        private static List<TaskItem> tasks = new List<TaskItem>();
+        private static int taskIdCounter = 1;
+
+        [HttpGet]
+        [Route("api/tasks")]
+        public IActionResult GetTasks()
+        {
+            return Ok(tasks);
+        }
+
+        [HttpPost]
+        [Route("api/tasks")]
+        public IActionResult CreateTask([FromBody] TaskItem task)
+        {
+            task.Id = taskIdCounter++;
+            tasks.Add(task);
+            return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
+        }
+
+        [HttpGet]
+        [Route("api/tasks/{id}")]
+        public IActionResult GetTaskById(int id)
+        {
+            var task = tasks.Find(t => t.Id == id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+            return Ok(task);
+        }
+
+        [HttpPut]
+        [Route("api/tasks/{id}")]
+        public class IActionResult UpdateTask(int id, [FromBody] TaskItem updatedTask)
+        {
+            var task = tasks.Find(t => t.Id == id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            task.Title = updatedTask.Title;
+            task.IsCompleted = updatedTask.IsCompleted;
+
+            return NoContent();
+        }
+
+        [HttpDelete]
+        [Route("api/tasks/{id}")]
+        public IActionResult DeleteTask(int id)
+        {
+            var task = tasks.Find(t => t.Id == id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            tasks.Remove(task);
+            return NoContent();
+        }
+    }
+
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            CreateHostBuilder(args).Build().Run();
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<Startup>();
+                });
+    }
+}
